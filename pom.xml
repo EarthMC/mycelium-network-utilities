@@ -12,18 +12,14 @@
     <name>VelocityCommands</name>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <repositories>
         <repository>
-            <id>velocitypowered-repo</id>
-            <url>https://nexus.velocitypowered.com/repository/maven-public/</url>
-        </repository>
-        <repository>
-            <id>sonatype-oss-snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <id>papermc-repo</id>
+            <url>https://papermc.io/repo/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -31,13 +27,8 @@
         <dependency>
             <groupId>com.velocitypowered</groupId>
             <artifactId>velocity-api</artifactId>
-            <version>3.1.0</version>
+            <version>3.1.2-SNAPSHOT</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.kyori</groupId>
-            <artifactId>adventure-text-minimessage</artifactId>
-            <version>4.2.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
@@ -57,42 +48,6 @@
                     <source>16</source>
                     <target>16</target>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.3.1-SNAPSHOT</version>
-                <configuration>
-                    <dependencyReducedPomLocation>${project.build.directory}/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-                    <minimizeJar>true</minimizeJar>
-                    <filters>
-                        <filter>
-                            <artifact>*:*</artifact>
-                            <excludes>
-                                <exclude>META-INF/*.MF</exclude>
-                                <exclude>META-INF/*.txt</exclude>
-                            </excludes>
-                        </filter>
-                    </filters>
-                    <artifactSet>
-                        <includes>
-                            <include>net.kyori:adventure-text-minimessage</include>
-                        </includes>
-                    </artifactSet>
-                    <relocations>
-                        <relocation>
-                            <pattern>net.kyori.adventure.text.minimessage</pattern>
-                            <shadedPattern>net.earthmc.velocitycommands.libs.minimessage</shadedPattern>
-                        </relocation>
-                    </relocations>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

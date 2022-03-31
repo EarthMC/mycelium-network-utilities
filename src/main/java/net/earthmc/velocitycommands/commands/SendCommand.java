@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class SendCommand implements SimpleCommand {
+public class SendCommand extends BaseCommand implements SimpleCommand {
 
     private final List<String> tabCompletes = new ArrayList<>();
     private final List<String> servers = new ArrayList<>();
@@ -53,7 +53,7 @@ public class SendCommand implements SimpleCommand {
         }
 
         Optional<RegisteredServer> optTarget = proxy.getServer(invocation.arguments()[1]);
-        if (optTarget.isEmpty()) {
+        if (optTarget.isEmpty() || !hasPermissionForServer(invocation.source(), invocation.arguments()[1])) {
             source.sendMessage(Component.text(invocation.arguments()[1] + " is not a valid target server.", NamedTextColor.RED));
             return;
         }
@@ -97,8 +97,8 @@ public class SendCommand implements SimpleCommand {
         source.sendMessage(Component.text("Sending " + toSend.size() + " player" + (toSend.size() == 1 ? "" : "s") + " to " + format(target) + "...", NamedTextColor.GREEN));
 
         for (Player player : toSend) {
-            player.createConnectionRequest(target).connect();
             player.sendMessage(Component.text("Summoned to " + format(target) + " by " + format(source), NamedTextColor.GOLD));
+            player.createConnectionRequest(target).fireAndForget();
         }
     }
 
@@ -109,17 +109,11 @@ public class SendCommand implements SimpleCommand {
     }
 
     private String format(CommandSource source) {
-        if (!(source instanceof Player player))
-            return "Console";
-
-        return player.getUsername();
+        return source instanceof Player player ? player.getUsername() : "Console";
     }
 
     @Override
     public List<String> suggest(Invocation invocation) {
-        if (!invocation.source().hasPermission("velocitycommands.send"))
-            return Collections.emptyList();
-
         return switch (invocation.arguments().length) {
             case 0 -> tabCompletes;
             case 1 -> {
@@ -131,12 +125,13 @@ public class SendCommand implements SimpleCommand {
                 else
                     yield filtered;
             }
-            case 2 -> filterByStart(servers, invocation.arguments()[1]);
+            case 2 -> filterByPermission(servers, invocation.arguments()[1], invocation.source(), "velocity.command.server.");
             default -> Collections.emptyList();
         };
     }
 
-    private List<String> filterByStart(Collection<String> strings, String startingWith) {
-        return strings.stream().filter(s -> s.startsWith(startingWith.toLowerCase())).collect(Collectors.toList());
+    @Override
+    public boolean hasPermission(Invocation invocation) {
+        return invocation.source().hasPermission("velocitycommands.send");
     }
 }

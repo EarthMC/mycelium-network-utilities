@@ -7,7 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
-public class AlertCommand implements SimpleCommand {
+public class AlertCommand extends BaseCommand implements SimpleCommand {
     private final ProxyServer proxy;
 
     public AlertCommand(ProxyServer proxy) {
@@ -26,10 +26,15 @@ public class AlertCommand implements SimpleCommand {
             return;
         }
 
-        Component message = MiniMessage.miniMessage().parse(String.join(" ", invocation.arguments()));
+        Component message = MiniMessage.miniMessage().deserialize(String.join(" ", invocation.arguments()));
         proxy.sendMessage(message);
 
         if (invocation.source() instanceof ConsoleCommandSource)
             invocation.source().sendMessage(message);
+    }
+
+    @Override
+    public boolean hasPermission(Invocation invocation) {
+        return invocation.source().hasPermission("velocitycommands.alert");
     }
 }
