@@ -15,10 +15,10 @@ public class BaseCommand {
         return strings.stream().filter(s -> s.regionMatches(true, 0, startingWith, 0, startingWith.length())).toList();
     }
 
-    public List<String> filterByPermission(Collection<String> collection, String startingWith, PermissionSubject subject, String permPrefix) {
+    public List<String> filterByPermission(@NotNull PermissionSubject subject, Collection<String> collection, String permPrefix, @Nullable String startingWith) {
         List<String> strings = new ArrayList<>(collection);
         strings.removeIf(string -> !hasPrefixedPermission(subject, permPrefix, string));
-        return filterByStart(strings, startingWith);
+        return startingWith != null ? filterByStart(strings, startingWith) : strings;
     }
 
     public boolean hasPrefixedPermission(@NotNull PermissionSubject subject, @NotNull String permPrefix, @Nullable String arg) {

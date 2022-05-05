@@ -8,9 +8,8 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.earthmc.velocitycommands.commands.AlertCommand;
 import net.earthmc.velocitycommands.commands.SendCommand;
 import net.earthmc.velocitycommands.commands.ServerCommand;
-import net.earthmc.velocitycommands.commands.VSudoCommand;
 
-@Plugin(id = "velocitycommands", name = "VelocityCommands", version = "0.0.1", authors = {"Warriorrr"})
+@Plugin(id = "velocitycommands", name = "VelocityCommands", version = "0.0.2", authors = {"Warriorrr"})
 public class VelocityCommands {
     private static ProxyServer proxy;
 
@@ -23,7 +22,6 @@ public class VelocityCommands {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         proxy.getCommandManager().register("send", new SendCommand(proxy));
         proxy.getCommandManager().register("alert", new AlertCommand(proxy));
-        proxy.getCommandManager().register("vsudo", new VSudoCommand(proxy));
 
         // Remove the original server command and replace it with ours
         proxy.getCommandManager().unregister("server");

@@ -125,7 +125,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                 else
                     yield filtered;
             }
-            case 2 -> filterByPermission(servers, invocation.arguments()[1], invocation.source(), "velocity.command.server.");
+            case 2 -> filterByPermission(invocation.source(), servers, "velocity.command.server.", invocation.arguments()[1]);
             default -> Collections.emptyList();
         };
     }
