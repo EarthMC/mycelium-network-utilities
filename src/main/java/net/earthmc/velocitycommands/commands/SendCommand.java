@@ -5,6 +5,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -43,7 +44,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
         }
 
         if (invocation.arguments().length < 2) {
-            source.sendMessage(Component.text("Not enough arguments! Usage: /send [all/current/player/server] [server].", NamedTextColor.RED));
+            source.sendMessage(Component.text("Not enough arguments! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
             return;
         }
 
@@ -52,13 +53,18 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             return;
         }
 
-        Optional<RegisteredServer> optTarget = proxy.getServer(invocation.arguments()[1]);
-        if (optTarget.isEmpty() || !hasPermissionForServer(invocation.source(), invocation.arguments()[1])) {
-            source.sendMessage(Component.text(invocation.arguments()[1] + " is not a valid target server.", NamedTextColor.RED));
-            return;
-        }
+        List<RegisteredServer> targets = new ArrayList<>();
 
-        RegisteredServer target = optTarget.get();
+        for (String target : invocation.arguments()[1].split(",")) {
+            Optional<RegisteredServer> optTarget = proxy.getServer(target);
+
+            if (optTarget.isEmpty() || !hasPermissionForServer(invocation.source(), target)) {
+                source.sendMessage(Component.text(target + " is not a valid target server.", NamedTextColor.RED));
+                return;
+            }
+
+            targets.add(optTarget.get());
+        }
 
         Collection<Player> toSend = switch (invocation.arguments()[0].toLowerCase()) {
             case "current" -> {
@@ -68,17 +74,28 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             case "all" -> proxy.getAllPlayers();
             default -> {
                 Optional<RegisteredServer> from = proxy.getServer(invocation.arguments()[0]);
+
                 if (from.isEmpty()) {
                     Optional<Player> player = proxy.getPlayer(invocation.arguments()[0]);
                     if (player.isEmpty()) {
-                        source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [target].", NamedTextColor.RED));
-                        yield Collections.emptyList();
-                    } else if (target.equals(player.get().getCurrentServer().get().getServer())) {
-                        source.sendMessage(Component.text(player.get().getUsername() + " is already connected to " + target.getServerInfo().getName() + ".", NamedTextColor.RED));
+                        source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
                         yield Collections.emptyList();
                     }
-                    yield Collections.singleton(player.get());
+
+                    Optional<RegisteredServer> playerServer = player.get().getCurrentServer().map(ServerConnection::getServer);
+
+                    if (playerServer.isEmpty()) {
+                        source.sendMessage(Component.text(player.get().getUsername() + " is not connected to any servers.", NamedTextColor.RED));
+                        yield Collections.emptyList();
+                    }
+
+                    if (targets.contains(playerServer.get())) {
+                        source.sendMessage(Component.text(player.get().getUsername() + " is already connected to " + format(playerServer.get()) + ".", NamedTextColor.RED));
+                        yield Collections.emptyList();
+                    } else
+                        yield Collections.singleton(player.get());
                 }
+
                 if (from.get().getPlayersConnected().isEmpty())
                     source.sendMessage(Component.text("No players are currently online on '" + format(from.get()) + "'.", NamedTextColor.RED));
 
@@ -86,17 +103,27 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             }
         };
 
-        if (!toSend.isEmpty())
-            toSend = toSend.stream().filter(player -> !player.getCurrentServer().get().getServer().equals(target)).collect(Collectors.toSet());
-
         if (toSend.isEmpty()) {
             source.sendMessage(Component.text("No players have been sent.", NamedTextColor.RED));
             return;
         }
 
-        source.sendMessage(Component.text("Sending " + toSend.size() + " player" + (toSend.size() == 1 ? "" : "s") + " to " + format(target) + "...", NamedTextColor.GREEN));
+        String formattedTargets = targets.stream().map(this::format).collect(Collectors.joining(", "));
+        source.sendMessage(Component.text("Sending " + toSend.size() + " player" + (toSend.size() == 1 ? "" : "s") + " to " + formattedTargets + "...", NamedTextColor.GREEN));
+
+        int index = 0;
 
         for (Player player : toSend) {
+            Optional<RegisteredServer> server = player.getCurrentServer().map(ServerConnection::getServer);
+            if (server.isPresent() && targets.get(index).equals(server.get()))
+                continue;
+
+            RegisteredServer target = targets.get(index);
+
+            index++;
+            if (index >= targets.size())
+                index = 0;
+
             player.sendMessage(Component.text("Summoned to " + format(target) + " by " + format(source), NamedTextColor.GOLD));
             player.createConnectionRequest(target).fireAndForget();
         }
