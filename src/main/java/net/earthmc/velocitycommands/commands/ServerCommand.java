@@ -8,7 +8,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
-import net.kyori.adventure.identity.Identity;
+import net.earthmc.velocitycommands.VelocityCommands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -30,9 +30,11 @@ import java.util.stream.Stream;
 public class ServerCommand extends BaseCommand implements SimpleCommand {
     private static final int MAX_SERVERS_TO_LIST = 50;
     private final ProxyServer server;
+    private final VelocityCommands plugin;
 
-    public ServerCommand(ProxyServer server) {
-        this.server = server;
+    public ServerCommand(VelocityCommands plugin) {
+        this.plugin = plugin;
+        this.server = plugin.proxy();
     }
 
     @Override
@@ -96,7 +98,8 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
         ServerInfo serverInfo = server.getServerInfo();
         TextComponent serverTextComponent = Component.text(serverInfo.getName());
 
-        int connectedPlayers = server.getPlayersConnected().size();
+        int connectedPlayers = plugin.getPlayersOnServer(server).size();
+
         TranslatableComponent playersTextComponent;
         if (connectedPlayers == 1) {
             playersTextComponent = Component.translatable("velocity.command.server-tooltip-player-online");

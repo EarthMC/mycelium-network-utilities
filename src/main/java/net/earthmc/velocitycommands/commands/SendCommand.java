@@ -1,12 +1,16 @@
 package net.earthmc.velocitycommands.commands;
 
+import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
+import com.imaginarycode.minecraft.redisbungee.events.PubSubMessageEvent;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
+import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import net.earthmc.velocitycommands.VelocityCommands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
@@ -16,16 +20,21 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class SendCommand extends BaseCommand implements SimpleCommand {
+    public static final String REDIS_CHANNEL = "vcommands-send";
 
     private final List<String> tabCompletes = new ArrayList<>();
     private final List<String> servers = new ArrayList<>();
     private final ProxyServer proxy;
+    private final VelocityCommands plugin;
 
-    public SendCommand(ProxyServer proxy) {
-        this.proxy = proxy;
+    public SendCommand(VelocityCommands plugin) {
+        this.plugin = plugin;
+        this.proxy = plugin.proxy();
 
         tabCompletes.addAll(Arrays.asList("all", "current"));
         for (RegisteredServer server : proxy.getAllServers()) {
@@ -66,16 +75,21 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             targets.add(optTarget.get());
         }
 
-        Collection<Player> toSend = switch (invocation.arguments()[0].toLowerCase()) {
+        Collection<UUID> toSend = switch (invocation.arguments()[0].toLowerCase()) {
             case "current" -> {
-                Player player = (Player) source;
-                yield player.getCurrentServer().get().getServer().getPlayersConnected();
+                final Player player = (Player) source;
+                final RegisteredServer current = player.getCurrentServer().map(ServerConnection::getServer).orElse(null);
+                if (current == null)
+                    source.sendMessage(Component.text("You are currently not connected to a server!", NamedTextColor.RED));
+
+                yield plugin.getPlayersOnServer(current);
             }
-            case "all" -> proxy.getAllPlayers();
+            case "all" -> plugin.getAllPlayers();
             default -> {
                 Optional<RegisteredServer> from = proxy.getServer(invocation.arguments()[0]);
 
                 if (from.isEmpty()) {
+                    // Send a specific player to a server
                     Optional<Player> player = proxy.getPlayer(invocation.arguments()[0]);
                     if (player.isEmpty()) {
                         source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
@@ -93,13 +107,15 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                         source.sendMessage(Component.text(player.get().getUsername() + " is already connected to " + format(playerServer.get()) + ".", NamedTextColor.RED));
                         yield Collections.emptyList();
                     } else
-                        yield Collections.singleton(player.get());
+                        yield Collections.singleton(player.get().getUniqueId());
                 }
 
-                if (from.get().getPlayersConnected().isEmpty())
+                // Send all players on this server to a server
+                Set<UUID> connected = plugin.getPlayersOnServer(from.get());
+                if (connected.isEmpty())
                     source.sendMessage(Component.text("No players are currently online on '" + format(from.get()) + "'.", NamedTextColor.RED));
 
-                yield from.get().getPlayersConnected();
+                yield connected;
             }
         };
 
@@ -113,9 +129,9 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
 
         int index = 0;
 
-        for (Player player : toSend) {
-            Optional<RegisteredServer> server = player.getCurrentServer().map(ServerConnection::getServer);
-            if (server.isPresent() && targets.get(index).equals(server.get()))
+        for (UUID uuid : toSend) {
+            Optional<RegisteredServer> server = plugin.getServerForPlayer(uuid).flatMap(proxy::getServer);
+            if (server.isEmpty() || targets.get(index).equals(server.get()))
                 continue;
 
             RegisteredServer target = targets.get(index);
@@ -124,8 +140,16 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             if (index >= targets.size())
                 index = 0;
 
-            player.sendMessage(Component.text("Summoned to " + format(target) + " by " + format(source), NamedTextColor.GOLD));
-            player.createConnectionRequest(target).fireAndForget();
+            proxy.getPlayer(uuid).ifPresentOrElse(player -> {
+                player.sendMessage(Component.text("Summoned to " + format(target) + " by " + format(source), NamedTextColor.GOLD));
+                player.createConnectionRequest(target).fireAndForget();
+            }, () -> {
+                if (!plugin.usingRedisBungee())
+                    return;
+
+                final String data = String.join(",", uuid.toString(), target.getServerInfo().getName(), format(source));
+                RedisBungeeAPI.getRedisBungeeApi().sendChannelMessage(REDIS_CHANNEL, data);
+            });
         }
     }
 
@@ -160,5 +184,27 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
     @Override
     public boolean hasPermission(Invocation invocation) {
         return invocation.source().hasPermission("velocitycommands.send");
+    }
+
+    @Subscribe
+    public void onPubSub(PubSubMessageEvent event) {
+        if (!REDIS_CHANNEL.equals(event.getChannel()))
+            return;
+
+        final String[] split = event.getMessage().split(",", 3);
+
+        final Optional<Player> optPlayer = proxy.getPlayer(UUID.fromString(split[0]));
+        if (optPlayer.isEmpty())
+            return;
+
+        final Optional<RegisteredServer> optTarget = proxy.getServer(split[1]);
+        if (optTarget.isEmpty())
+            return;
+
+        final Player player = optPlayer.get();
+        final RegisteredServer target = optTarget.get();
+
+        player.sendMessage(Component.text("Summoned to " + format(target) + " by " + split[2], NamedTextColor.GOLD));
+        player.createConnectionRequest(target).fireAndForget();
     }
 }
