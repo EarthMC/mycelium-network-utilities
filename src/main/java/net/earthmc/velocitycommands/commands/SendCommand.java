@@ -90,24 +90,24 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
 
                 if (from.isEmpty()) {
                     // Send a specific player to a server
-                    Optional<Player> player = proxy.getPlayer(invocation.arguments()[0]);
+                    Optional<UUID> player = plugin.getUUIDForPlayer(invocation.arguments()[0]);
                     if (player.isEmpty()) {
                         source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
                         yield Collections.emptyList();
                     }
 
-                    Optional<RegisteredServer> playerServer = player.get().getCurrentServer().map(ServerConnection::getServer);
+                    Optional<RegisteredServer> playerServer = plugin.getServerForPlayer(player.get()).flatMap(proxy::getServer);
 
                     if (playerServer.isEmpty()) {
-                        source.sendMessage(Component.text(player.get().getUsername() + " is not connected to any servers.", NamedTextColor.RED));
+                        source.sendMessage(Component.text(invocation.arguments()[0] + " is not connected to any servers.", NamedTextColor.RED));
                         yield Collections.emptyList();
                     }
 
                     if (targets.contains(playerServer.get())) {
-                        source.sendMessage(Component.text(player.get().getUsername() + " is already connected to " + format(playerServer.get()) + ".", NamedTextColor.RED));
+                        source.sendMessage(Component.text(invocation.arguments()[0] + " is already connected to " + format(playerServer.get()) + ".", NamedTextColor.RED));
                         yield Collections.emptyList();
                     } else
-                        yield Collections.singleton(player.get().getUniqueId());
+                        yield Collections.singleton(player.get());
                 }
 
                 // Send all players on this server to a server
@@ -172,7 +172,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                 List<String> filtered = filterByStart(tabCompletes, arg);
 
                 if (filtered.isEmpty())
-                    yield proxy.getAllPlayers().stream().map(Player::getUsername).filter(name -> name.toLowerCase().startsWith(arg)).collect(Collectors.toList());
+                    yield plugin.getAllPlayerNames().stream().filter(name -> name.toLowerCase().startsWith(arg)).collect(Collectors.toList());
                 else
                     yield filtered;
             }
