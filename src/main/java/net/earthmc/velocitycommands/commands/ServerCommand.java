@@ -41,7 +41,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
         final String[] args = invocation.arguments();
 
         if (!(source instanceof Player player)) {
-            source.sendMessage(Identity.nil(), Component.translatable("velocity.command.players-only", NamedTextColor.RED));
+            source.sendMessage(Component.translatable("velocity.command.players-only", NamedTextColor.RED));
             return;
         }
 
@@ -50,7 +50,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
             String serverName = args[0];
             Optional<RegisteredServer> toConnect = server.getServer(serverName);
             if (toConnect.isEmpty() || !hasPermissionForServer(player, serverName)) {
-                player.sendMessage(Identity.nil(), Component.translatable("velocity.command.server-does-not-exist", NamedTextColor.RED).args(Component.text(serverName)));
+                player.sendMessage(Component.translatable("velocity.command.server-does-not-exist", NamedTextColor.RED).args(Component.text(serverName)));
                 return;
             }
 
@@ -62,14 +62,14 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
 
     private void outputServerInformation(Player executor) {
         String currentServer = executor.getCurrentServer().map(ServerConnection::getServerInfo).map(ServerInfo::getName).orElse("<unknown>");
-        executor.sendMessage(Identity.nil(), Component.translatable(
+        executor.sendMessage(Component.translatable(
                 "velocity.command.server-current-server",
                 NamedTextColor.YELLOW,
                 Component.text(currentServer)));
 
         List<RegisteredServer> servers = sortedServerList(server);
         if (servers.size() > MAX_SERVERS_TO_LIST) {
-            executor.sendMessage(Identity.nil(), Component.translatable("velocity.command.server-too-many", NamedTextColor.RED));
+            executor.sendMessage(Component.translatable("velocity.command.server-too-many", NamedTextColor.RED));
             return;
         }
 
@@ -89,7 +89,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
             }
         }
 
-        executor.sendMessage(Identity.nil(), serverListBuilder.build());
+        executor.sendMessage(serverListBuilder.build());
     }
 
     private TextComponent formatServerComponent(String currentPlayerServer, RegisteredServer server) {
