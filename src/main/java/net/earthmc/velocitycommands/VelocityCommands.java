@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Plugin(id = "velocitycommands", name = "VelocityCommands", version = "0.0.2", authors = {"Warriorrr"}, dependencies = { @Dependency(id = "redisbungee", optional = true) })
+@Plugin(id = "velocitycommands", name = "VelocityCommands", version = "0.1.0", authors = {"Warriorrr"}, dependencies = { @Dependency(id = "redisbungee", optional = true) })
 public class VelocityCommands {
     private final ProxyServer proxy;
     private boolean usingRedisBungee;
