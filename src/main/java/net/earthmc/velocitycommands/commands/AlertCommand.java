@@ -66,7 +66,7 @@ public class AlertCommand extends BaseCommand implements SimpleCommand {
                 return;
         }
 
-        final String message = String.join(", ", Arrays.copyOfRange(invocation.arguments(), 1, invocation.arguments().length));
+        final String message = String.join(" ", Arrays.copyOfRange(invocation.arguments(), 1, invocation.arguments().length));
         final Component component = MiniMessage.miniMessage().deserialize(message);
 
         proxy.getConsoleCommandSource().sendMessage(component);
