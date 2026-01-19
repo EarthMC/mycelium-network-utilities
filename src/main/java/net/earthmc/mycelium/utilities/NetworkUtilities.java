@@ -65,20 +65,23 @@ public class NetworkUtilities {
         final MessagingRegistrar registrar = client.messaging();
 
         // begin checking to see if there's any other active proxies that need to close their listener
-        // at this part we are not yet part of the proxies set
         final Collection<Proxy> proxies = client.network().proxies();
         final ChannelIdentifier.Bound<String> takeoverChannel = registrar.bind(ChannelIdentifier.identifier("takeover"), Codecs.STRING);
 
-        if (!proxies.isEmpty()) {
+        if (proxies.size() > 1) {
             logger.info("Another proxy is still running, asking them to kindly turn off their listener...");
             final CompletableFuture<Void> finished = new CompletableFuture<>();
 
             for (final Proxy proxy : proxies) {
-                proxy.message(takeoverChannel, "my turn").callback(response -> {
-                    logger.info("Successfully shut down the other proxy's listener.");
-                    logger.info("Message from the proxy shutting down: {} ", response.data());
-                    finished.complete(null);
-                }).send();
+                try {
+                    proxy.message(takeoverChannel, "my turn").callback(response -> {
+                        logger.info("Successfully shut down the other proxy's listener.");
+                        logger.info("Message from the proxy shutting down: {} ", response.data());
+                        finished.complete(null);
+                    }).send();
+                } catch (UnsupportedOperationException ignored) {
+                    // in case we accidentally message ourself
+                }
             }
 
             try {
