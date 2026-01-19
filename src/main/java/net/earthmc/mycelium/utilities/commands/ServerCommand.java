@@ -1,4 +1,4 @@
-package net.earthmc.velocitycommands.commands;
+package net.earthmc.mycelium.utilities.commands;
 
 import com.google.common.collect.ImmutableList;
 import com.velocitypowered.api.command.CommandSource;
@@ -8,7 +8,9 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
-import net.earthmc.velocitycommands.VelocityCommands;
+import net.earthmc.mycelium.api.Mycelium;
+import net.earthmc.mycelium.api.network.Server;
+import net.earthmc.mycelium.utilities.NetworkUtilities;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -30,9 +32,9 @@ import java.util.stream.Stream;
 public class ServerCommand extends BaseCommand implements SimpleCommand {
     private static final int MAX_SERVERS_TO_LIST = 50;
     private final ProxyServer server;
-    private final VelocityCommands plugin;
+    private final NetworkUtilities plugin;
 
-    public ServerCommand(VelocityCommands plugin) {
+    public ServerCommand(NetworkUtilities plugin) {
         this.plugin = plugin;
         this.server = plugin.proxy();
     }
@@ -98,7 +100,8 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
         ServerInfo serverInfo = server.getServerInfo();
         TextComponent serverTextComponent = Component.text(serverInfo.getName());
 
-        int connectedPlayers = plugin.getPlayersOnServer(server).size();
+        final Server mServer = Mycelium.get().network().getServerById(server.getServerInfo().getName());
+        int connectedPlayers = mServer == null ? server.getPlayersConnected().size() : mServer.playerCount();
 
         TranslatableComponent playersTextComponent;
         if (connectedPlayers == 1) {

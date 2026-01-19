@@ -1,28 +1,25 @@
-package net.earthmc.velocitycommands.commands;
+package net.earthmc.mycelium.utilities.commands;
 
-import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
-import com.imaginarycode.minecraft.redisbungee.events.PubSubMessageEvent;
 import com.velocitypowered.api.command.SimpleCommand;
-import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.proxy.ProxyServer;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
-import net.earthmc.velocitycommands.VelocityCommands;
+import net.earthmc.mycelium.api.Mycelium;
+import net.earthmc.mycelium.api.network.Player;
+import net.earthmc.mycelium.api.network.Server;
+import net.earthmc.mycelium.utilities.NetworkUtilities;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 public class AlertCommand extends BaseCommand implements SimpleCommand {
     public static final String REDIS_CHANNEL = "vcommands-alert";
     private final ProxyServer proxy;
-    private final VelocityCommands plugin;
+    private final NetworkUtilities plugin;
 
-    public AlertCommand(VelocityCommands plugin) {
+    public AlertCommand(NetworkUtilities plugin) {
         this.plugin = plugin;
         this.proxy = plugin.proxy();
     }
@@ -39,26 +36,26 @@ public class AlertCommand extends BaseCommand implements SimpleCommand {
             return;
         }
 
-        final Set<UUID> recipients = new HashSet<>();
+        final Set<Player> recipients = new HashSet<>();
         if ("all".equalsIgnoreCase(invocation.arguments()[0]))
-            recipients.addAll(plugin.getAllPlayers());
+            recipients.addAll(Mycelium.get().network().players());
         else {
-            Set<RegisteredServer> servers = new HashSet<>();
+            Set<Server> servers = new HashSet<>();
             Set<String> invalidServers = new HashSet<>();
 
-            for (String server : invocation.arguments()[0].split(",")) {
-                Optional<RegisteredServer> optServer = proxy.getServer(server);
+            for (String serverName : invocation.arguments()[0].split(",")) {
+                final Server server = Mycelium.get().network().getServerById(serverName);
 
-                if (optServer.isEmpty()) {
-                    invalidServers.add(server);
+                if (server == null) {
+                    invalidServers.add(serverName);
                 } else {
-                    servers.add(optServer.get());
-                    recipients.addAll(plugin.getPlayersOnServer(optServer.get()));
+                    servers.add(server);
+                    recipients.addAll(server.players());
                 }
             }
 
             if (!invalidServers.isEmpty())
-                invocation.source().sendMessage(Component.text("The following servers are invalid: " + String.join(", ", invalidServers) + ".", NamedTextColor.GOLD));
+                invocation.source().sendMessage(Component.text("Could not find server(s): " + String.join(", ", invalidServers) + ".", NamedTextColor.GOLD));
 
             if (!servers.isEmpty())
                 invocation.source().sendMessage(Component.text("Broadcasting message to " + servers.size() + " server" + (servers.size() == 1 ? "" : "s") + ".", NamedTextColor.GOLD));
@@ -71,25 +68,13 @@ public class AlertCommand extends BaseCommand implements SimpleCommand {
 
         proxy.getConsoleCommandSource().sendMessage(component);
 
-        for (UUID uuid : recipients) {
-            proxy.getPlayer(uuid).ifPresentOrElse(player -> player.sendMessage(component), () -> {
-                if (plugin.usingRedisBungee())
-                    RedisBungeeAPI.getRedisBungeeApi().sendChannelMessage(REDIS_CHANNEL, String.join(",", uuid.toString(), message));
-            });
+        for (Player player : recipients) {
+            player.sendRichMessage(message);
         }
     }
 
     @Override
     public boolean hasPermission(Invocation invocation) {
         return invocation.source().hasPermission("velocitycommands.alert");
-    }
-
-    @Subscribe
-    public void onPubSub(PubSubMessageEvent event) {
-        if (!REDIS_CHANNEL.equals(event.getChannel()))
-            return;
-
-        final String[] data = event.getMessage().split(",", 2);
-        proxy.getPlayer(UUID.fromString(data[0])).ifPresent(player -> player.sendMessage(MiniMessage.miniMessage().deserialize(data[1])));
     }
 }

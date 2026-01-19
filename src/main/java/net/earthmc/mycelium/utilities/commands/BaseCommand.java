@@ -1,4 +1,4 @@
-package net.earthmc.velocitycommands.commands;
+package net.earthmc.mycelium.utilities.commands;
 
 import com.velocitypowered.api.permission.PermissionSubject;
 import com.velocitypowered.api.permission.Tristate;
