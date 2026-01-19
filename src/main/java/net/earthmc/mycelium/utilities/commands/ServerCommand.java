@@ -100,7 +100,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
         ServerInfo serverInfo = server.getServerInfo();
         TextComponent serverTextComponent = Component.text(serverInfo.getName());
 
-        final Server mServer = Mycelium.get().network().getServerById(server.getServerInfo().getName());
+        final Server mServer = Mycelium.api().network().getServerById(server.getServerInfo().getName());
         int connectedPlayers = mServer == null ? server.getPlayersConnected().size() : mServer.playerCount();
 
         TranslatableComponent playersTextComponent;

@@ -49,7 +49,7 @@ public class GlistCommand {
                     final String argument = context.getArguments().containsKey(SERVER_ARG)
                             ? context.getArgument(SERVER_ARG, String.class)
                             : "";
-                    for (Server server : Mycelium.get().network().servers()) {
+                    for (Server server : Mycelium.api().network().servers()) {
                         final String serverName = server.name();
                         if (serverName.regionMatches(true, 0, argument, 0, argument.length())) {
                             builder.suggest(serverName);
@@ -84,12 +84,12 @@ public class GlistCommand {
         final CommandSource source = context.getSource();
         final String serverName = getString(context, SERVER_ARG);
         if (serverName.equalsIgnoreCase("all")) {
-            for (final Server server : Mycelium.get().network().servers()) {
+            for (final Server server : Mycelium.api().network().servers()) {
                 sendServerPlayers(source, server, true);
             }
             sendTotalProxyCount(source);
         } else {
-            final Server registeredServer = Mycelium.get().network().getServerById(serverName);
+            final Server registeredServer = Mycelium.api().network().getServerById(serverName);
             if (registeredServer == null) {
                 source.sendMessage(Component.translatable("velocity.command.server-does-not-exist", NamedTextColor.RED).arguments(Component.text(serverName)));
                 return -1;
@@ -100,7 +100,7 @@ public class GlistCommand {
     }
 
     private void sendTotalProxyCount(CommandSource target) {
-        final int online = Mycelium.get().network().playerCount();
+        final int online = Mycelium.api().network().playerCount();
         final TranslatableComponent.Builder msg = Component.translatable()
                 .key(online == 1
                         ? "velocity.command.glist-player-singular"

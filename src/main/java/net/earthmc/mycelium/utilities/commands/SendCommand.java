@@ -59,7 +59,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
         List<Server> targets = new ArrayList<>();
 
         for (String target : invocation.arguments()[1].split(",")) {
-            final Server server = Mycelium.get().network().getServerById(target);
+            final Server server = Mycelium.api().network().getServerById(target);
 
             if (server == null || !hasPermissionForServer(invocation.source(), target)) {
                 source.sendMessage(Component.text(target + " is not a valid target server.", NamedTextColor.RED));
@@ -78,15 +78,15 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                     yield Collections.emptyList();
                 }
 
-                yield Mycelium.get().network().getServerById(current.getServerInfo().getName()).players();
+                yield Mycelium.api().network().getServerById(current.getServerInfo().getName()).players();
             }
-            case "all" -> Mycelium.get().network().players();
+            case "all" -> Mycelium.api().network().players();
             default -> {
-                Server from = Mycelium.get().network().getServerById(invocation.arguments()[0]);
+                Server from = Mycelium.api().network().getServerById(invocation.arguments()[0]);
 
                 if (from == null) {
                     // Send a specific player to a server
-                    Player player = Mycelium.get().network().getPlayerByName(invocation.arguments()[0]);
+                    Player player = Mycelium.api().network().getPlayerByName(invocation.arguments()[0]);
                     if (player == null) {
                         source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
                         yield Collections.emptyList();
@@ -158,7 +158,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                 List<String> filtered = filterByStart(tabCompletes, arg);
 
                 if (filtered.isEmpty())
-                    yield Mycelium.get().network().players().stream().map(Player::username).filter(name -> name.toLowerCase().startsWith(arg)).toList();
+                    yield Mycelium.api().network().players().stream().map(Player::username).filter(name -> name.toLowerCase().startsWith(arg)).toList();
                 else
                     yield filtered;
             }

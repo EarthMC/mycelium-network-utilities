@@ -60,7 +60,7 @@ public class NetworkUtilities {
 
     @Subscribe(priority = Short.MIN_VALUE) // always run this last
     public void killOtherProxy(ProxyInitializeEvent event) {
-        final Mycelium client = Mycelium.get();
+        final Mycelium client = Mycelium.api();
 
         final MessagingRegistrar registrar = client.messaging();
 

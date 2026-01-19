@@ -38,13 +38,13 @@ public class AlertCommand extends BaseCommand implements SimpleCommand {
 
         final Set<Player> recipients = new HashSet<>();
         if ("all".equalsIgnoreCase(invocation.arguments()[0]))
-            recipients.addAll(Mycelium.get().network().players());
+            recipients.addAll(Mycelium.api().network().players());
         else {
             Set<Server> servers = new HashSet<>();
             Set<String> invalidServers = new HashSet<>();
 
             for (String serverName : invocation.arguments()[0].split(",")) {
-                final Server server = Mycelium.get().network().getServerById(serverName);
+                final Server server = Mycelium.api().network().getServerById(serverName);
 
                 if (server == null) {
                     invalidServers.add(serverName);
