@@ -114,7 +114,7 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                     @Nullable String playerServerName = null;
                     UUID playerUUID;
 
-                    if (player == null) {
+                    if (player == null || player.server() == null) {
                         final com.velocitypowered.api.proxy.Player velocityPlayer = proxy.getPlayer(invocation.arguments()[0]).orElse(null);
                         if (velocityPlayer == null) {
                             source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
@@ -131,7 +131,6 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                             playerServerName = playerServer.name();
                         }
                     }
-
 
                     if (playerServerName == null) {
                         source.sendMessage(Component.text(invocation.arguments()[0] + " is not connected to any server.", NamedTextColor.RED));
@@ -178,9 +177,10 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
 
         for (UUID playerUUID : toSend) {
             final String targetServerName = targets.get(sentPlayers % targets.size());
+            final Server target = mycelium.network().getServerById(targetServerName);
 
             final Player player = mycelium.network().getPlayerByUUID(playerUUID);
-            if (player == null) {
+            if (player == null || target == null) {
                 final com.velocitypowered.api.proxy.Player velocityPlayer = proxy.getPlayer(playerUUID).orElse(null);
                 if (velocityPlayer == null) {
                     continue;
@@ -191,23 +191,18 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                     continue;
                 }
 
-                final RegisteredServer target = proxy.getServer(targetServerName).orElse(null);
-                if (target == null) {
+                final RegisteredServer targetServer = proxy.getServer(targetServerName).orElse(null);
+                if (targetServer == null) {
                     continue;
                 }
 
-                velocityPlayer.createConnectionRequest(target).fireAndForget();
+                velocityPlayer.createConnectionRequest(targetServer).fireAndForget();
 
                 velocityPlayer.sendRichMessage("<gold>Summoned to " + format(targetServerName) + " by " + format(source));
             } else {
                 final Server playerServer = player.server();
 
                 if (playerServer != null && targetServerName.equals(playerServer.name())) {
-                    continue;
-                }
-
-                final Server target = mycelium.network().getServerById(targetServerName);
-                if (target == null) {
                     continue;
                 }
 
