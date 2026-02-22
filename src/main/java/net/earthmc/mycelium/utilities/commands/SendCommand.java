@@ -12,34 +12,42 @@ import net.earthmc.mycelium.api.network.Server;
 import net.earthmc.mycelium.utilities.NetworkUtilities;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class SendCommand extends BaseCommand implements SimpleCommand {
-    private final List<String> tabCompletes = new ArrayList<>();
-    private final List<String> servers = new ArrayList<>();
+    private final Set<String> sources = new LinkedHashSet<>();
+    private final Set<String> targets = new LinkedHashSet<>();
     private final ProxyServer proxy;
-    private final NetworkUtilities plugin;
 
     public SendCommand(NetworkUtilities plugin) {
-        this.plugin = plugin;
         this.proxy = plugin.proxy();
 
-        tabCompletes.addAll(Arrays.asList("all", "current"));
+        sources.addAll(Arrays.asList("all", "current"));
         for (RegisteredServer server : proxy.getAllServers()) {
-            servers.add(server.getServerInfo().getName().toLowerCase());
-            tabCompletes.add(server.getServerInfo().getName().toLowerCase());
+            targets.add(server.getServerInfo().getName().toLowerCase());
+            sources.add(server.getServerInfo().getName().toLowerCase());
+        }
+
+        for (final Server server : Mycelium.api().network().servers()) {
+            targets.add(server.name());
+            sources.add(server.name());
         }
     }
 
     @Override
     public void execute(Invocation invocation) {
-        CommandSource source = invocation.source();
+        final CommandSource source = invocation.source();
 
         if (!source.hasPermission("velocitycommands.send")) {
             source.sendMessage(Component.text("You do not have enough permissions to use this command.", NamedTextColor.RED));
@@ -56,20 +64,23 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             return;
         }
 
-        List<Server> targets = new ArrayList<>();
+        final Mycelium mycelium = Mycelium.api();
+
+        List<String> targets = new ArrayList<>();
 
         for (String target : invocation.arguments()[1].split(",")) {
-            final Server server = Mycelium.api().network().getServerById(target);
+            final Server server = mycelium.network().getServerById(target);
+            final RegisteredServer registeredServer = proxy.getServer(target).orElse(null);
 
-            if (server == null || !hasPermissionForServer(invocation.source(), target)) {
+            if ((server == null && registeredServer == null) || !hasPermissionForServer(invocation.source(), target)) {
                 source.sendMessage(Component.text(target + " is not a valid target server.", NamedTextColor.RED));
                 return;
             }
 
-            targets.add(server);
+            targets.add(target);
         }
 
-        Collection<Player> toSend = switch (invocation.arguments()[0].toLowerCase()) {
+        Collection<UUID> toSend = switch (invocation.arguments()[0].toLowerCase()) {
             case "current" -> {
                 final com.velocitypowered.api.proxy.Player player = (com.velocitypowered.api.proxy.Player) source;
                 final RegisteredServer current = player.getCurrentServer().map(ServerConnection::getServer).orElse(null);
@@ -78,38 +89,78 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
                     yield Collections.emptyList();
                 }
 
-                yield Mycelium.api().network().getServerById(current.getServerInfo().getName()).players();
+                final Server myceliumServer = mycelium.network().getServerById(current.getServerInfo().getName());
+                if (myceliumServer == null) {
+                    yield current.getPlayersConnected().stream().map(com.velocitypowered.api.proxy.Player::getUniqueId).toList();
+                } else {
+                    yield myceliumServer.players().stream().map(Player::uuid).toList();
+                }
             }
-            case "all" -> Mycelium.api().network().players();
+            case "all" -> {
+                final Set<UUID> allPlayers = new HashSet<>();
+
+                mycelium.network().players().forEach(player -> allPlayers.add(player.uuid()));
+                proxy.getAllPlayers().forEach(player -> allPlayers.add(player.getUniqueId()));
+
+                yield allPlayers;
+            }
             default -> {
-                Server from = Mycelium.api().network().getServerById(invocation.arguments()[0]);
+                Server from = mycelium.network().getServerById(invocation.arguments()[0]);
+                RegisteredServer fromVelocity = proxy.getServer(invocation.arguments()[0]).orElse(null);
 
-                if (from == null) {
+                if (from == null && fromVelocity == null) {
                     // Send a specific player to a server
-                    Player player = Mycelium.api().network().getPlayerByName(invocation.arguments()[0]);
+                    Player player = mycelium.network().getPlayerByName(invocation.arguments()[0]);
+                    @Nullable String playerServerName = null;
+                    UUID playerUUID;
+
                     if (player == null) {
-                        source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
+                        final com.velocitypowered.api.proxy.Player velocityPlayer = proxy.getPlayer(invocation.arguments()[0]).orElse(null);
+                        if (velocityPlayer == null) {
+                            source.sendMessage(Component.text("Invalid argument! Usage: /send [all/current/player/server] [server(s)].", NamedTextColor.RED));
+                            yield Collections.emptyList();
+                        }
+
+                        playerUUID = velocityPlayer.getUniqueId();
+                        playerServerName = velocityPlayer.getCurrentServer().map(server -> server.getServerInfo().getName()).orElse(null);
+                    } else {
+                        playerUUID = player.uuid();
+                        final Server playerServer = player.server();
+
+                        if (playerServer != null) {
+                            playerServerName = playerServer.name();
+                        }
+                    }
+
+
+                    if (playerServerName == null) {
+                        source.sendMessage(Component.text(invocation.arguments()[0] + " is not connected to any server.", NamedTextColor.RED));
                         yield Collections.emptyList();
                     }
 
-                    final Server playerServer = player.server();
-
-                    if (playerServer == null) {
-                        source.sendMessage(Component.text(invocation.arguments()[0] + " is not connected to any servers.", NamedTextColor.RED));
+                    if (targets.contains(playerServerName)) {
+                        source.sendMessage(Component.text(invocation.arguments()[0] + " is already connected to " + format(playerServerName) + ".", NamedTextColor.RED));
                         yield Collections.emptyList();
+                    } else {
+                        yield Collections.singleton(playerUUID);
                     }
-
-                    if (targets.contains(playerServer)) {
-                        source.sendMessage(Component.text(invocation.arguments()[0] + " is already connected to " + format(playerServer.name()) + ".", NamedTextColor.RED));
-                        yield Collections.emptyList();
-                    } else
-                        yield Collections.singleton(player);
                 }
 
                 // Send all players on this server to a server
-                Collection<Player> connected = from.players();
-                if (connected.isEmpty())
-                    source.sendMessage(Component.text("No players are currently online on '" + format(from.name()) + "'.", NamedTextColor.RED));
+                final Set<UUID> connected = new HashSet<>();
+                final String fromName;
+
+                if (from == null) {
+                    fromVelocity.getPlayersConnected().forEach(player -> connected.add(player.getUniqueId()));
+                    fromName = fromVelocity.getServerInfo().getName();
+                } else {
+                    from.players().forEach(player -> connected.add(player.uuid()));
+                    fromName = from.name();
+                }
+
+                if (connected.isEmpty()) {
+                    source.sendMessage(Component.text("No players are currently online on '" + format(fromName) + "'.", NamedTextColor.RED));
+                }
 
                 yield connected;
             }
@@ -120,24 +171,53 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
             return;
         }
 
-        String formattedTargets = targets.stream().map(Server::name).map(this::format).collect(Collectors.joining(", "));
+        String formattedTargets = targets.stream().map(this::format).collect(Collectors.joining(", "));
         source.sendMessage(Component.text("Sending " + toSend.size() + " player" + (toSend.size() == 1 ? "" : "s") + " to " + formattedTargets + "...", NamedTextColor.GREEN));
 
-        int index = 0;
+        int sentPlayers = 0;
 
-        for (Player player : toSend) {
-            final Server playerServer = player.server();
-            if (playerServer == null || targets.get(index).equals(playerServer))
-                continue;
+        for (UUID playerUUID : toSend) {
+            final String targetServerName = targets.get(sentPlayers % targets.size());
 
-            Server target = targets.get(index);
+            final Player player = mycelium.network().getPlayerByUUID(playerUUID);
+            if (player == null) {
+                final com.velocitypowered.api.proxy.Player velocityPlayer = proxy.getPlayer(playerUUID).orElse(null);
+                if (velocityPlayer == null) {
+                    continue;
+                }
 
-            index++;
-            if (index >= targets.size())
-                index = 0;
+                final ServerConnection playerServer = velocityPlayer.getCurrentServer().orElse(null);
+                if (playerServer != null && playerServer.getServerInfo().getName().equals(targetServerName)) {
+                    continue;
+                }
 
-            player.sendRichMessage("<gold>Summoned to " + format(target.name()) + " by " + format(source));
-            player.transferToServer(target);
+                final RegisteredServer target = proxy.getServer(targetServerName).orElse(null);
+                if (target == null) {
+                    continue;
+                }
+
+                velocityPlayer.createConnectionRequest(target).fireAndForget();
+
+                velocityPlayer.sendRichMessage("<gold>Summoned to " + format(targetServerName) + " by " + format(source));
+            } else {
+                final Server playerServer = player.server();
+
+                if (playerServer != null && targetServerName.equals(playerServer.name())) {
+                    continue;
+                }
+
+                final Server target = mycelium.network().getServerById(targetServerName);
+                if (target == null) {
+                    continue;
+                }
+
+                sentPlayers++;
+
+                player.sendRichMessage("<gold>Summoned to " + format(targetServerName) + " by " + format(source));
+                player.transferToServer(target);
+            }
+
+            sentPlayers++;
         }
     }
 
@@ -152,17 +232,18 @@ public class SendCommand extends BaseCommand implements SimpleCommand {
     @Override
     public List<String> suggest(Invocation invocation) {
         return switch (invocation.arguments().length) {
-            case 0 -> tabCompletes;
+            case 0 -> List.copyOf(sources);
             case 1 -> {
                 String arg = invocation.arguments()[0].toLowerCase();
-                List<String> filtered = filterByStart(tabCompletes, arg);
+                List<String> filtered = filterByStart(sources, arg);
 
-                if (filtered.isEmpty())
+                if (filtered.isEmpty()) {
                     yield Mycelium.api().network().players().stream().map(Player::username).filter(name -> name.toLowerCase().startsWith(arg)).toList();
-                else
+                } else {
                     yield filtered;
+                }
             }
-            case 2 -> filterByPermission(invocation.source(), servers, "velocity.command.server.", invocation.arguments()[1]);
+            case 2 -> filterByPermission(invocation.source(), targets, "velocity.command.server.", invocation.arguments()[1]);
             default -> Collections.emptyList();
         };
     }
