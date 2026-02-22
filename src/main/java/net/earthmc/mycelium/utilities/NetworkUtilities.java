@@ -73,15 +73,15 @@ public class NetworkUtilities {
             final CompletableFuture<Void> finished = new CompletableFuture<>();
 
             for (final Proxy proxy : proxies) {
-                try {
-                    proxy.message(takeoverChannel, "my turn").callback(response -> {
-                        logger.info("Successfully shut down the other proxy's listener.");
-                        logger.info("Message from the proxy shutting down: {} ", response.data());
-                        finished.complete(null);
-                    }).send();
-                } catch (UnsupportedOperationException ignored) {
-                    // in case we accidentally message ourself
+                if (proxy.id().equals(client.platform().id())) {
+                    continue;
                 }
+
+                proxy.message(takeoverChannel, "my turn").callback(response -> {
+                    logger.info("Successfully shut down the other proxy's listener.");
+                    logger.info("Message from the proxy shutting down: {} ", response.data());
+                    finished.complete(null);
+                }).send();
             }
 
             try {
@@ -94,7 +94,7 @@ public class NetworkUtilities {
         }
 
         registrar.registerPlatformChannel(takeoverChannel, incoming -> {
-            if (!this.portCurrentlyBound) {
+            if (!this.portCurrentlyBound || incoming.sender().isSelf()) {
                 return;
             }
 
