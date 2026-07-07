@@ -23,7 +23,7 @@
         </repository>
         <repository>
             <id>earthmc</id>
-            <url>https://repo.earthmc.net/snapshots</url>
+            <url>https://repo.earthmc.net/public</url>
         </repository>
     </repositories>
 
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>net.earthmc.mycelium</groupId>
             <artifactId>api</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1-beta.10</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
