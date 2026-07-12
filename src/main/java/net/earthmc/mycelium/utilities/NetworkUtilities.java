@@ -16,6 +16,7 @@ import net.earthmc.mycelium.utilities.commands.AlertCommand;
 import net.earthmc.mycelium.utilities.commands.GlistCommand;
 import net.earthmc.mycelium.utilities.commands.SendCommand;
 import net.earthmc.mycelium.utilities.commands.ServerCommand;
+import net.earthmc.mycelium.utilities.listener.TriggerShutdownListener;
 import org.slf4j.Logger;
 
 import java.util.Collection;
@@ -31,6 +32,8 @@ public class NetworkUtilities {
     private final Logger logger;
 
     private boolean portCurrentlyBound = true;
+
+    private TriggerShutdownListener triggerShutdown;
 
     @Inject
     public NetworkUtilities(ProxyServer proxy, Logger logger) {
@@ -56,6 +59,9 @@ public class NetworkUtilities {
         commands.unregister("glist");
         final GlistCommand glistCommand = new GlistCommand(proxy, this);
         glistCommand.register();
+
+        triggerShutdown = new TriggerShutdownListener(this);
+        proxy.getEventManager().register(this, triggerShutdown);
     }
 
     @Subscribe(priority = Short.MIN_VALUE) // always run this last
@@ -101,10 +107,23 @@ public class NetworkUtilities {
             this.proxy.closeListeners();
             this.portCurrentlyBound = false;
             incoming.buildResponse("o7").send();
+
+            // attempt to shut down the proxy if there's no one connected
+            if (this.triggerShutdown != null) {
+                this.triggerShutdown.checkShutdown();
+            }
         });
     }
 
     public ProxyServer proxy() {
         return this.proxy;
+    }
+
+    public Logger logger() {
+        return this.logger;
+    }
+
+    public boolean portCurrentlyBound() {
+        return this.portCurrentlyBound;
     }
 }
