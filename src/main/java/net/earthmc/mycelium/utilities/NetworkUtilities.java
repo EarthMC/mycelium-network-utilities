@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-@Plugin(id = "mycelium-network-utilities", name = "Mycelium Network Utilities", version = "0.0.1", authors = {"Warriorrr"}, dependencies = { @Dependency(id = "mycelium") })
+@Plugin(id = "mycelium-network-utilities", name = "Mycelium Network Utilities", version = BuildConstants.VERSION, authors = "Warriorrr", dependencies = @Dependency(id = "mycelium"))
 public class NetworkUtilities {
     private final ProxyServer proxy;
 

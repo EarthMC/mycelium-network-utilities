@@ -1,0 +1,12 @@
+[versions]
+velocity = "3.4.0-SNAPSHOT"
+mycelium = "0.0.1-beta.11"
+
+conventions = "1.1.0"
+
+[libraries]
+mycelium = { group = "net.earthmc.mycelium", name = "api", version.ref = "mycelium" }
+velocity = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity" }
+
+[plugins]
+conventions-java = { id = "net.earthmc.conventions.java", version.ref = "conventions" }
