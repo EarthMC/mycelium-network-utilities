@@ -17,10 +17,8 @@ import java.util.Set;
 public class AlertCommand extends BaseCommand implements SimpleCommand {
     public static final String REDIS_CHANNEL = "vcommands-alert";
     private final ProxyServer proxy;
-    private final NetworkUtilities plugin;
 
     public AlertCommand(NetworkUtilities plugin) {
-        this.plugin = plugin;
         this.proxy = plugin.proxy();
     }
 

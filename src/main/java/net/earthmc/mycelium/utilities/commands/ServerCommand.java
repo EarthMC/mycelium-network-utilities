@@ -32,10 +32,8 @@ import java.util.stream.Stream;
 public class ServerCommand extends BaseCommand implements SimpleCommand {
     private static final int MAX_SERVERS_TO_LIST = 50;
     private final ProxyServer server;
-    private final NetworkUtilities plugin;
 
     public ServerCommand(NetworkUtilities plugin) {
-        this.plugin = plugin;
         this.server = plugin.proxy();
     }
 
@@ -54,7 +52,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
             String serverName = args[0];
             Optional<RegisteredServer> toConnect = server.getServer(serverName);
             if (toConnect.isEmpty() || !hasPermissionForServer(player, serverName)) {
-                player.sendMessage(Component.translatable("velocity.command.server-does-not-exist", NamedTextColor.RED).args(Component.text(serverName)));
+                player.sendMessage(Component.translatable("velocity.command.server-does-not-exist", NamedTextColor.RED).arguments(Component.text(serverName)));
                 return;
             }
 
@@ -109,7 +107,7 @@ public class ServerCommand extends BaseCommand implements SimpleCommand {
         } else {
             playersTextComponent = Component.translatable("velocity.command.server-tooltip-players-online");
         }
-        playersTextComponent = playersTextComponent.args(Component.text(connectedPlayers));
+        playersTextComponent = playersTextComponent.arguments(Component.text(connectedPlayers));
         if (serverInfo.getName().equals(currentPlayerServer)) {
             serverTextComponent = serverTextComponent.color(NamedTextColor.GREEN)
                     .hoverEvent(HoverEvent.showText(
